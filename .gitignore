@@ -1,0 +1,49 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environment
+venv/
+.venv/
+env/
+
+# Database
+genai_runtime_risk.db
+*.sqlite3
+
+# Environment Variables
+.env
+.env.local
+
+# Data / Vector DB
+data/chroma_db/
+data/raw/*.csv
+!data/raw/.gitkeep
+
+# Results & Reports
+results/
+data/processed/
+
+# Ignore CSV and JSON results except our setup config or docs if any
+*.csv
+*.json
+!README.md
+!TECHNICAL_DESIGN.md
