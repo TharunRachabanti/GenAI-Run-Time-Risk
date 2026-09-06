@@ -184,7 +184,7 @@ def build_rag():
                     "status": d.status,
                     "is_authoritative": d.is_authoritative,
                     "effective_date": str(d.effective_date) if d.effective_date else "",
-                    "content": d.full_text or d.summary or "",
+                    "content": d.content or d.summary or "",
                 }
                 for d in docs
             ]
