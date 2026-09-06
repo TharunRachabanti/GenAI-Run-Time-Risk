@@ -146,6 +146,7 @@ class GoogleAdapter:
         generation_config = self._genai.GenerationConfig(
             temperature=temperature,
             max_output_tokens=max_tokens,
+            response_mime_type="application/json",
         )
         full_prompt = user_prompt + "\n\nRespond with ONLY valid JSON."
         response = await asyncio.to_thread(
