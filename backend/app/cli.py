@@ -176,8 +176,9 @@ def build_rag():
                 embedding_model_name=settings.embedding_model,
                 top_k=settings.rag_top_k,
             )
-            doc_dicts = [
-                {
+            for d in docs:
+                rag.ingest_document({
+                    "document_id": str(d.document_id),
                     "document_code": d.document_code,
                     "title": d.title,
                     "version": d.version,
@@ -185,10 +186,7 @@ def build_rag():
                     "is_authoritative": d.is_authoritative,
                     "effective_date": str(d.effective_date) if d.effective_date else "",
                     "content": d.content or d.summary or "",
-                }
-                for d in docs
-            ]
-            rag.index_documents(doc_dicts)
+                })
             console.print(f"[bold green]OK Indexed {len(docs)} policy documents into ChromaDB.[/bold green]")
         except Exception as e:
             console.print(f"[yellow]RAG indexing skipped: {e}[/yellow]")
