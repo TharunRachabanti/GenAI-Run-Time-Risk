@@ -149,11 +149,23 @@ class GoogleAdapter:
             response_mime_type="application/json",
         )
         full_prompt = user_prompt + "\n\nRespond with ONLY valid JSON."
-        response = await asyncio.to_thread(
-            gemini_model.generate_content, full_prompt,
-            generation_config=generation_config,
-        )
-        content = response.text
+        
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                response = await asyncio.to_thread(
+                    gemini_model.generate_content, full_prompt,
+                    generation_config=generation_config,
+                )
+                content = response.text
+                break
+            except Exception as e:
+                if "429" in str(e) and attempt < max_retries - 1:
+                    logger.warning(f"Google API rate limit hit (429). Retrying in 16s (Attempt {attempt+1}/{max_retries})...")
+                    await asyncio.sleep(16)
+                else:
+                    raise e
+
         metadata = {"model": self._model_name, "candidates": len(response.candidates)}
         return content, metadata
 
