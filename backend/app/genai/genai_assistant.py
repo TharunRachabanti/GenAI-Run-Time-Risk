@@ -145,7 +145,7 @@ class GoogleAdapter:
         )
         generation_config = self._genai.GenerationConfig(
             temperature=temperature,
-            max_output_tokens=max_tokens,
+            max_output_tokens=8192,
             response_mime_type="application/json",
         )
         full_prompt = user_prompt + "\n\nRespond with ONLY valid JSON."
