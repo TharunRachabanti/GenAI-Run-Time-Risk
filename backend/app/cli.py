@@ -63,7 +63,7 @@ def train_pd():
     """[STEP 2] Train the Logistic Regression PD model and score all applicants."""
     console.print(Panel(
         "[bold blue]Training PD model and generating applicant scores...[/bold blue]\n"
-        "Results will be saved to [bold]data/processed/pd_results_latest.csv[/bold]",
+        "Results will be saved to [bold]results/pd_results_[timestamp].csv[/bold]",
         title="STEP 2 — Train PD Model", border_style="blue"
     ))
     from app.services.data_pipeline import DataPipelineService
@@ -98,8 +98,7 @@ def show_pd_results():
                     f"[bold]Accuracy:[/bold] {model.accuracy:.4f}\n"
                     f"[bold]F1 Score:[/bold] {model.f1_score:.4f}\n"
                     f"[bold]Frozen:[/bold]   {'Yes OK' if model.is_frozen else 'No'}",
-                    title="[bold cyan]PD Model Metrics[/bold cyan]",
-                    border_style="cyan",
+                    title="PD Model Metrics", border_style="green"
                 ))
             else:
                 console.print("[yellow]No model found. Run 'train-pd' first.[/yellow]")
@@ -108,9 +107,13 @@ def show_pd_results():
     asyncio.run(_show())
 
     # Show CSV results
-    pd_latest = Path("data/processed/pd_results_latest.csv")
-    if pd_latest.exists():
-        table = Table(title="Applicant PD Scores (from pd_results_latest.csv)",
+    results_dir = Path("results")
+    pd_files = list(results_dir.glob("pd_results_*.csv"))
+    if pd_files:
+        # Sort to get the latest timestamp
+        pd_latest = sorted(pd_files, key=lambda p: p.stat().st_mtime, reverse=True)[0]
+        
+        table = Table(title=f"Applicant PD Scores (from {pd_latest.name})",
                       header_style="bold magenta", box=box.SIMPLE)
         table.add_column("Code", width=12)
         table.add_column("Name", width=20)
@@ -136,7 +139,7 @@ def show_pd_results():
         console.print(table)
         console.print(f"[dim]File: {pd_latest.resolve()}[/dim]")
     else:
-        console.print("[yellow]CSV file not found. Run 'train-pd' first.[/yellow]")
+        console.print("[yellow]CSV file not found in results folder. Run 'train-pd' first.[/yellow]")
 
     console.print("\n  Next: [bold]python cli.py build-rag[/bold]")
 
