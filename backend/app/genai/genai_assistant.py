@@ -150,7 +150,7 @@ class GoogleAdapter:
         )
         full_prompt = user_prompt + "\n\nRespond with ONLY valid JSON."
         
-        max_retries = 3
+        max_retries = 6
         for attempt in range(max_retries):
             try:
                 response = await asyncio.to_thread(
@@ -161,8 +161,9 @@ class GoogleAdapter:
                 break
             except Exception as e:
                 if "429" in str(e) and attempt < max_retries - 1:
-                    logger.warning(f"Google API rate limit hit (429). Retrying in 16s (Attempt {attempt+1}/{max_retries})...")
-                    await asyncio.sleep(16)
+                    delay = 15 * (2 ** attempt)
+                    logger.warning(f"Google API rate limit hit (429). Retrying in {delay}s (Attempt {attempt+1}/{max_retries})...")
+                    await asyncio.sleep(delay)
                 else:
                     raise e
 
