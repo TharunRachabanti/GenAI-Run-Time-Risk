@@ -27,7 +27,8 @@ If you are setting this up on your local system, follow these steps exactly.
 ### Prerequisites
 Before cloning, ensure you have installed:
 1. **VS Code** (or your preferred code editor).
-2. **Python 3.10 or higher** (Run `python --version` in your terminal to check).
+2. **Python 3.11 or 3.12** (Run `python --version` in your terminal to check). 
+   > ⚠️ **CRITICAL WARNING:** Do **NOT** use experimental Python versions like 3.13 or 3.14! Core AI libraries (`pydantic-core`, `tokenizers`) rely on Rust bindings (PyO3) that will fail to compile on bleeding-edge Python versions, causing massive installation errors. Stick to stable Python 3.12.
 
 > **Note on `.gitignore`:**
 > To protect sensitive data and keep the repository clean, the `.gitignore` specifically excludes:
@@ -73,7 +74,20 @@ Since the `.env` file containing API keys is ignored by Git, you must create one
    # macOS/Linux
    mv .env.example .env
    ```
-3. Open `.env` in VS Code and fill in your real API key (e.g. for `OPENAI_API_KEY`). Ensure `GENAI_PROVIDER` and `GENAI_MODEL_NAME` are set correctly.
+3. **Get a FREE API Key:**
+   We recommend using Google Gemini as they provide a highly capable free tier for developers:
+   - Go to **[Google AI Studio](https://aistudio.google.com/app/apikey)** and sign in with your Google account.
+   - Click **"Get API key"** on the left menu, then click **"Create API key in new project"**.
+   - Copy the long string of letters and numbers that appears.
+4. Open the new `.env` file in VS Code.
+   - Ensure the provider is set to `google` and the model to `gemini-1.5-flash`.
+   - Paste your copied key onto the `GOOGLE_API_KEY` line.
+   ```env
+   GENAI_PROVIDER=google
+   GENAI_MODEL_NAME=gemini-1.5-flash
+   GOOGLE_API_KEY=AIzaSyPasteYourLongGoogleKeyRightHere
+   ```
+5. Save the file (`Ctrl + S`).
 
 ### Step 5: Add the Dataset
 Because the dataset is too large for GitHub, you must download it manually.
