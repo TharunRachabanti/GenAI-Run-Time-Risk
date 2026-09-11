@@ -18,15 +18,18 @@ The goal is to prove whether GenAI introduces a dangerous new type of non-determ
 If you are cloning this repository to your local system, follow these steps exactly to run the 6-script pipeline.
 
 ### Step 1: Set Up the Environment
-To prevent conflicts with your system Python packages, it is highly recommended to create a virtual environment:
+
+> ⚠️ **CRITICAL WARNING:** Do **NOT** use experimental Python versions like 3.13 or 3.14! Core AI and data science libraries (`numpy`, `pandas`) rely on C-extensions that frequently fail to compile on bleeding-edge Python versions (causing "DLL load failed" errors). You **must** stick to stable Python 3.11 or 3.12.
+
+To prevent conflicts with your system Python packages, it is highly recommended to create a virtual environment specifically using Python 3.12 (or 3.11):
 
 ```bash
 # Windows
-python -m venv venv
+py -3.12 -m venv venv
 venv\Scripts\activate
 
 # macOS/Linux
-python3 -m venv venv
+python3.12 -m venv venv
 source venv/bin/activate
 ```
 
