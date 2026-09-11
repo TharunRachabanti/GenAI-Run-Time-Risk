@@ -1,10 +1,10 @@
+print("Initializing Master Dataset Build... (Loading libraries, this may take a moment)")
 import pandas as pd
 import numpy as np
 import os
 
 def main():
-    """Build fixed master dataset from PD-scored borrowers."""
-    print("Initializing master dataset mapping...")
+    """Builds the frozen master dataset with all required variables."""
     
     input_path = "data/processed/02_borrowers_with_pd.csv"
     output_path = "data/processed/03_master_fixed_dataset.csv"

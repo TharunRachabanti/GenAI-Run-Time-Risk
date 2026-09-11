@@ -1,3 +1,4 @@
+print("Initializing LLM Experiments... (Loading libraries, this may take a moment)")
 import pandas as pd
 import os
 import zipfile

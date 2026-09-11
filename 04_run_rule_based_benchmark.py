@@ -1,3 +1,4 @@
+print("Initializing Rule-Based Benchmark... (Loading libraries, this may take a moment)")
 import pandas as pd
 import os
 
@@ -41,8 +42,7 @@ def evaluate_borrower(row):
     return "APPROVE"
 
 def main():
-    """Apply rule-based benchmark to master dataset."""
-    print("Initializing benchmark script...")
+    """Run the strict rule-based decision engine over the master dataset."""
     
     input_path = "data/processed/03_master_fixed_dataset.csv"
     output_path = "data/processed/04_benchmark_results.csv"

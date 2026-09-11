@@ -1,3 +1,4 @@
+print("Initializing PD Model Training... (Loading libraries, this may take a moment)")
 import pandas as pd
 import numpy as np
 import os
@@ -28,7 +29,6 @@ def map_features(df):
 
 def main():
     """Train PD Model and apply scoring to processed borrowers."""
-    print("Initializing PD Model Training...")
     
     raw_path = "data/raw/application_train.csv"
     borrowers_path = "data/processed/01_cleaned_borrowers.csv"

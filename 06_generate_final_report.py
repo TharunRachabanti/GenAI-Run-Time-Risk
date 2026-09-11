@@ -1,9 +1,9 @@
+print("Initializing Final Report Generation... (Loading libraries, this may take a moment)")
 import pandas as pd
 import os
 
 def main():
-    """Generate final output matrix and analysis summary."""
-    print("Initializing report generation...")
+    """Calculates final metrics and generates summary tables."""
     
     benchmark_path = "data/processed/04_benchmark_results.csv"
     experiments_path = "data/processed/05_experiment_results.csv"
