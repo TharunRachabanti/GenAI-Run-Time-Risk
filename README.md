@@ -32,7 +32,7 @@ source venv/bin/activate
 
 Once your virtual environment is active, install the required packages:
 ```bash
-pip install -r requirements.txt
+python -m pip install -r requirements.txt
 ```
 
 ### Step 2: Configure the API Key
