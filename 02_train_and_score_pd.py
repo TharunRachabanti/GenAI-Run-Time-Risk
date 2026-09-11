@@ -59,6 +59,8 @@ def main():
     # predict_proba returns [prob_0, prob_1]
     pd_scores = pipeline.predict_proba(X_borrowers)[:, 1]
     
+    # De-fragment the dataframe before adding new columns to prevent PerformanceWarning
+    borrowers_df = borrowers_df.copy()
     borrowers_df['pd_score'] = pd_scores
     borrowers_df['pd_risk_band'] = borrowers_df['pd_score'].apply(calculate_risk_band)
     
