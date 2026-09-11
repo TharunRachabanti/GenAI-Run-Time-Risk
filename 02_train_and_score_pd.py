@@ -46,7 +46,7 @@ def main():
     print("Training Logistic Regression PD Model...")
     pipeline = Pipeline([
         ("scaler", StandardScaler()),
-        ("lr", LogisticRegression(class_weight="balanced", max_iter=500))
+        ("lr", LogisticRegression(max_iter=500))
     ])
     pipeline.fit(X_train, y_train)
     
