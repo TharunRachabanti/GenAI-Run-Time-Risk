@@ -233,9 +233,12 @@ async def async_main():
         print("CRITICAL ERROR: Valid GOOGLE_API_KEY not found in .env!")
         return
 
-    # Initialize Models
-    adapter_A = GoogleAdapter(api_key, "gemini-1.5-flash") # Use 1.5 flash for speed and cost
-    adapter_B = GoogleAdapter(api_key, "gemini-1.5-pro")
+    # Initialize Models from .env
+    primary_model = os.getenv("PRIMARY_MODEL", "gemini-1.5-flash")
+    secondary_model = os.getenv("SECONDARY_MODEL", "gemini-1.5-pro")
+    
+    adapter_A = GoogleAdapter(api_key, primary_model)
+    adapter_B = GoogleAdapter(api_key, secondary_model)
     
     kb_2026, kb_2025, kb_alt = build_knowledge_bases()
     
