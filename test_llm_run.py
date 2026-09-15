@@ -143,7 +143,12 @@ def extract_text_from_docx(docx_path):
             xml_content = z.read('word/document.xml')
             tree = ET.fromstring(xml_content)
             ns = {'w': 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'}
-            return '\n'.join([p.text for p in tree.findall('.//w:t', ns) if p.text])
+            text_nodes = [p.text.strip() for p in tree.findall('.//w:t', ns) if p.text and p.text.strip()]
+            raw_text = ' '.join(text_nodes)
+            # Aggressively minify whitespace to save tokens
+            import re
+            minified_text = re.sub(r'\s+', ' ', raw_text)
+            return minified_text
     except Exception as e:
         print(f"Failed to read {docx_path}: {e}")
         return ""
