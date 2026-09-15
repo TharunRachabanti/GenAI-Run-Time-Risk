@@ -223,10 +223,11 @@ async def async_main():
         print("CRITICAL ERROR: Valid GOOGLE_API_KEY not found in .env!")
         return
 
-    primary_model   = os.getenv("PRIMARY_MODEL", "gemini-1.5-flash")
-    secondary_model = os.getenv("SECONDARY_MODEL", "gemini-1.5-pro")
+    primary_model   = os.getenv("PRIMARY_MODEL", "gemini-2.0-flash")
+    # In test mode, use the same model for all experiments to avoid 404 on free tier
+    # The real model variation (EXP-005/007) will use SECONDARY_MODEL in the full run
     adapter_A = GoogleAdapter(api_key, primary_model)
-    adapter_B = GoogleAdapter(api_key, secondary_model)
+    adapter_B = adapter_A  # Same adapter for test — avoids Pro 404 on free tier
 
     kb_2026, kb_2025, kb_alt = build_knowledge_bases()
 
