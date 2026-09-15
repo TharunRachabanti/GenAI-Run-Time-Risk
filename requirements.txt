@@ -8,6 +8,7 @@ python-dotenv==1.0.1
 pandas
 numpy
 scikit-learn
+openpyxl
 
 # LLM Providers
 google-generativeai==0.8.3
