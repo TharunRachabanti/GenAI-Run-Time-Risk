@@ -65,7 +65,7 @@ class GoogleAdapter:
 OUTPUT_SCHEMA = """{{
   "applicant_id": "{applicant_id}",
   "recommendation": "<APPROVE|APPROVE_WITH_CONDITIONS|DECLINE>",
-  "reasoning_summary": "<2-3 sentence explanation citing the specific policy measures that drove this decision>",
+  "reasoning_summary": "<ONE sentence citing the key policy measure(s) that drove this decision>",
   "material_exceptions_count": <integer>
 }}"""
 
@@ -194,27 +194,41 @@ async def run_single_experiment(adapter, exp_code, prompt_template, sys_template
         prompt_version=exp_code,
         model_name=adapter._model_name
     )
-    try:
-        content, _ = await adapter.complete(sys_template, user_prompt, temperature=0.0, max_tokens=1000)
-        content_clean = content.replace("```json", "").replace("```", "").strip()
-        
-        # DEBUG: print raw response to diagnose errors
-        print(f"    [DEBUG {exp_code}] Raw response: {content_clean[:300]}")
-        
-        # Primary: try standard JSON parse
+    max_retries = 3
+    for attempt in range(max_retries):
         try:
-            result = json.loads(content_clean)
-            return exp_code, result.get("recommendation", "ERROR"), result.get("reasoning_summary", "")
-        except json.JSONDecodeError as je:
-            print(f"    [DEBUG {exp_code}] JSON parse failed: {je}")
-            # Fallback: use regex to pull out recommendation field
-            match = re.search(r'"recommendation"\s*:\s*"([^"]+)"', content_clean)
-            if match:
-                return exp_code, match.group(1), ""
-            return exp_code, "ERROR", ""
-    except Exception as e:
-        print(f"  ERROR on {exp_code} for {row['Applicant Code']}: {e}")
-        return exp_code, "ERROR", ""
+            content, _ = await adapter.complete(sys_template, user_prompt, temperature=0.0, max_tokens=800)
+            content_clean = content.replace("```json", "").replace("```", "").strip()
+            
+            try:
+                result = json.loads(content_clean)
+                rec = result.get("recommendation", "ERROR")
+                rsn = result.get("reasoning_summary", "")
+                if rec != "ERROR":
+                    return exp_code, rec, rsn
+            except json.JSONDecodeError:
+                # Fallback: regex to extract independently from broken JSON
+                rec_match = re.search(r'"recommendation"\s*:\s*"([^"]+)"', content_clean)
+                rsn_match = re.search(r'"reasoning_summary"\s*:\s*"([^"]+)', content_clean)
+                rec = rec_match.group(1) if rec_match else "ERROR"
+                rsn = rsn_match.group(1).rstrip('"\\') if rsn_match else ""
+                
+                if rec != "ERROR":
+                    return exp_code, rec, rsn
+                    
+            # If we reached here, recommendation is still ERROR (e.g. garbled response)
+            if attempt < max_retries - 1:
+                print(f"    [WARN] {exp_code} returned garbled output. Retrying in 10s...")
+                await asyncio.sleep(10)
+            else:
+                return exp_code, "ERROR", ""
+                
+        except Exception as e:
+            if attempt < max_retries - 1:
+                await asyncio.sleep(10)
+            else:
+                print(f"  ERROR on {exp_code} for {row['Applicant Code']}: {e}")
+                return exp_code, "ERROR", ""
 
 async def async_main():
     api_key = os.getenv("GOOGLE_API_KEY")
@@ -272,7 +286,8 @@ async def async_main():
                 "Recommendation":  recommendation,
                 "Reasoning":       reasoning,
             })
-            await asyncio.sleep(1)  # 1-second pause between calls to respect rate limits
+            # 15-second pause to prevent Google free-tier 32,000 TPM limit truncation
+            await asyncio.sleep(15)
         
         all_rows.append(results)
 

@@ -214,27 +214,43 @@ async def run_single_experiment(adapter, exp_code, prompt_template, sys_template
         model_name=adapter._model_name
     )
     
-    try:
-        import re
-        content, _ = await adapter.complete(sys_template, user_prompt, temperature=0.0, max_tokens=400)
-        
-        # Clean markdown formatting if present
-        content_clean = content.replace("```json", "").replace("```", "").strip()
-        
-        # Primary: standard JSON parse
+    max_retries = 3
+    for attempt in range(max_retries):
         try:
-            result = json.loads(content_clean)
-            return exp_code, result.get("recommendation", "ERROR"), result.get("reasoning_summary", "")
-        except json.JSONDecodeError:
-            # Fallback: regex to extract fields independently from broken JSON
-            rec_match = re.search(r'"recommendation"\s*:\s*"([^"]+)"', content_clean)
-            rsn_match = re.search(r'"reasoning_summary"\s*:\s*"([^"]+)', content_clean)
-            recommendation = rec_match.group(1) if rec_match else "ERROR"
-            reasoning      = rsn_match.group(1).rstrip('"\\') if rsn_match else ""
-            return exp_code, recommendation, reasoning
-    except Exception as e:
-        print(f"Error on {exp_code} for {row['Applicant Code']}: {e}")
-        return exp_code, "ERROR", ""
+            import re
+            content, _ = await adapter.complete(sys_template, user_prompt, temperature=0.0, max_tokens=800)
+            
+            # Clean markdown formatting if present
+            content_clean = content.replace("```json", "").replace("```", "").strip()
+            
+            try:
+                result = json.loads(content_clean)
+                rec = result.get("recommendation", "ERROR")
+                rsn = result.get("reasoning_summary", "")
+                if rec != "ERROR":
+                    return exp_code, rec, rsn
+            except json.JSONDecodeError:
+                # Fallback: regex to extract independently from broken JSON
+                rec_match = re.search(r'"recommendation"\s*:\s*"([^"]+)"', content_clean)
+                rsn_match = re.search(r'"reasoning_summary"\s*:\s*"([^"]+)', content_clean)
+                rec = rec_match.group(1) if rec_match else "ERROR"
+                rsn = rsn_match.group(1).rstrip('"\\') if rsn_match else ""
+                
+                if rec != "ERROR":
+                    return exp_code, rec, rsn
+                    
+            if attempt < max_retries - 1:
+                print(f"    [WARN] {exp_code} returned garbled output. Retrying in 10s...")
+                await asyncio.sleep(10)
+            else:
+                return exp_code, "ERROR", ""
+                
+        except Exception as e:
+            if attempt < max_retries - 1:
+                await asyncio.sleep(10)
+            else:
+                print(f"Error on {exp_code} for {row['Applicant Code']}: {e}")
+                return exp_code, "ERROR", ""
 
 async def process_borrower(row, kb_2026, kb_2025, kb_alt, adapter_A, adapter_B, semaphore):
     async with semaphore:
@@ -264,7 +280,13 @@ async def process_borrower(row, kb_2026, kb_2025, kb_alt, adapter_A, adapter_B, 
             run_single_experiment(adapter_B, "EXP-007", USER_PROMPT_CONSERVATIVE, SYSTEM_PROMPT_CONSERVATIVE, kb_alt, row)
         ]
         
-        exp_results = await asyncio.gather(*tasks)
+        
+        exp_results = []
+        for task in tasks:
+            res = await task
+            exp_results.append(res)
+            await asyncio.sleep(15)  # 15s delay between parallel chunk starts to avoid TPM limits
+            
         for exp_code, recommendation, reasoning in exp_results:
             results[exp_code] = recommendation
             # You can also store reasoning if you want to output it in full run. 
