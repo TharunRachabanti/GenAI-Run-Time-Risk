@@ -33,7 +33,7 @@ def main():
     # --------------------------------------------------------------------------
     # 1. Applicant Identification
     # --------------------------------------------------------------------------
-    master['Applicant Code'] = ["P" + str(i).zfill(3) for i in range(1, len(df)+1)]
+    master['Applicant Code'] = df['Applicant Code']
     master['Original_SK_ID'] = df['SK_ID_CURR']
 
     # --------------------------------------------------------------------------

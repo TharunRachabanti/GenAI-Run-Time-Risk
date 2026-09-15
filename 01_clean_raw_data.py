@@ -26,7 +26,10 @@ def main():
     df_clean = df.dropna(subset=crucial_cols).copy()
     
     # Take top 500
-    df_500 = df_clean.head(500)
+    df_500 = df_clean.head(500).copy()
+    
+    # Generate the clean Applicant Code here for universal traceability
+    df_500.insert(0, 'Applicant Code', ["P" + str(i).zfill(3) for i in range(1, len(df_500)+1)])
     
     output_path = os.path.join(processed_dir, "01_cleaned_borrowers.csv")
     df_500.to_csv(output_path, index=False)
