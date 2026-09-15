@@ -132,7 +132,9 @@ async def run_single_experiment(adapter, exp_code, prompt_template, sys_template
         inq_qrt=row['Inquiries (Quarter)'],
         inq_year=row['Inquiries (Year)'],
         pd_score=row['Predicted PD'],
-        policy_context=kb_text
+        policy_context=kb_text,
+        prompt_version=exp_code,
+        model_name=adapter._model_name
     )
     
     try:
