@@ -209,7 +209,7 @@ async def run_single_experiment(adapter, exp_code, prompt_template, sys_template
                 result = json.loads(content_clean)
                 rec = result.get("recommendation", "ERROR")
                 rsn = result.get("reasoning_summary", "")
-                if rec != "ERROR":
+                if rec != "ERROR" and rsn.strip() != "":
                     return exp_code, rec, rsn
             except json.JSONDecodeError:
                 # Fallback: robust regex to extract from broken JSON
@@ -224,7 +224,7 @@ async def run_single_experiment(adapter, exp_code, prompt_template, sys_template
                 # If the string was truncated and has trailing escape/quote, clean it
                 rsn = re.sub(r'\\?["\\]*$', '', rsn)
                 
-                if rec != "ERROR":
+                if rec != "ERROR" and rsn.strip() != "":
                     return exp_code, rec, rsn
                     
             # If we reached here, recommendation is still ERROR (e.g. garbled response)
