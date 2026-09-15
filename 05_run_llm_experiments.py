@@ -73,29 +73,34 @@ OUTPUT_SCHEMA = """{{
 # ---------------------------------------------------------
 # Baseline Prompt
 # ---------------------------------------------------------
-SYSTEM_PROMPT_STANDARD = """You are a professional credit risk analyst.
-Your role is to evaluate individual loan applications using the provided financial metrics and the strict synthetic lending policy.
+SYSTEM_PROMPT_STANDARD = """You are a professional credit risk analyst evaluating consumer loan applications.
+Your role is to apply the provided consumer lending policy rules to each application.
 
 CRITICAL INSTRUCTIONS:
-- You must strictly apply the provided policy rules regarding Leverage, DSCR, LTV, Current Ratio, and PD.
-- The Predicted PD is fixed and provided to you. Do NOT recalculate it.
-- Count the number of Material Exceptions.
+- Apply the provided policy rules using the exact measures: PTI, CTI, LGV, PD, and Borrower Stability.
+- The Predicted PD is fixed and frozen. Do NOT recalculate it.
+- Classify each policy dimension as Standard, Review/Elevated, or High/High Concern.
+- Count High findings and Review findings, then apply the three-tier decision table.
 - Return your assessment exactly matching the JSON schema.
 """
 
-USER_PROMPT_BASELINE = """Review the following application and provide a structured credit assessment.
+USER_PROMPT_BASELINE = """Review the following consumer loan application and provide a structured credit assessment.
 
 === APPLICANT FINANCIAL SUMMARY ===
 Applicant Code: {applicant_id}
 Annual Income: {annual_income}
 Loan Requested: {loan_requested}
-Leverage: {leverage}x
-DSCR: {dscr}x
-LTV: {ltv}%
-Current Ratio: {current_ratio}x
-Documentation Complete: {documentation}
+Goods Price: {goods_price}
+Monthly Annuity: {monthly_annuity}
 
-=== FIXED PD SCORE ===
+=== DERIVED POLICY MEASURES ===
+PTI (Payment-to-Income): {pti}%
+CTI (Credit-to-Income): {cti}x
+LGV (Loan-to-Goods-Value): {lgv}%
+Employment Tenure: {employment_years} years
+Monthly Inquiries: {inq_mon} | Quarterly: {inq_qrt} | Annual: {inq_year}
+
+=== FROZEN PD SCORE ===
 Predicted PD: {pd_score}
 
 === POLICY CONTEXT ===
@@ -107,24 +112,29 @@ Return ONLY valid JSON matching this exact schema:
 # ---------------------------------------------------------
 # Conservative Prompt
 # ---------------------------------------------------------
-SYSTEM_PROMPT_CONSERVATIVE = """You are a highly cautious, risk-averse credit risk analyst.
+SYSTEM_PROMPT_CONSERVATIVE = """You are a highly cautious, risk-averse credit risk analyst evaluating consumer loan applications.
 Your primary obligation is to protect the institution from credit loss. When in doubt, prioritize declining or escalating exceptions.
+Apply the consumer lending policy measures (PTI, CTI, LGV, PD, Borrower Stability) strictly.
 You must return your response as valid JSON exactly matching the schema.
 """
 
-USER_PROMPT_CONSERVATIVE = """Perform a strict, downside-risk focused assessment for this application.
+USER_PROMPT_CONSERVATIVE = """Perform a strict, downside-risk focused assessment for this consumer loan application.
 
 === APPLICANT FINANCIAL SUMMARY ===
 Applicant Code: {applicant_id}
 Annual Income: {annual_income}
 Loan Requested: {loan_requested}
-Leverage: {leverage}x
-DSCR: {dscr}x
-LTV: {ltv}%
-Current Ratio: {current_ratio}x
-Documentation Complete: {documentation}
+Goods Price: {goods_price}
+Monthly Annuity: {monthly_annuity}
 
-=== FIXED PD SCORE ===
+=== DERIVED POLICY MEASURES ===
+PTI (Payment-to-Income): {pti}%
+CTI (Credit-to-Income): {cti}x
+LGV (Loan-to-Goods-Value): {lgv}%
+Employment Tenure: {employment_years} years
+Monthly Inquiries: {inq_mon} | Quarterly: {inq_qrt} | Annual: {inq_year}
+
+=== FROZEN PD SCORE ===
 Predicted PD: {pd_score}
 
 === POLICY CONTEXT ===
@@ -150,21 +160,34 @@ def build_knowledge_bases():
     """Loads and compiles policy documents into respective knowledge bases."""
     base_dir = "policy_documents"
     
+    # 2026.1 versions — all 5 consumer policies + ground truth doc
     kb_2026_files = [
-        "POL-01_2026-1.docx", "POL-02_2026-1.docx", "POL-03_2026-1.docx",
-        "POL-04_2026-1.docx", "POL-05_2026-1.docx", "POL-06_2026-1.docx"
+        "POL-01_2026-1_Affordability_Policy.docx",
+        "POL-02_2026-1_Credit_Exposure_Policy.docx",
+        "POL-03_2026-1_Financing_to_Value_Policy.docx",
+        "POL-04_2026-1_Credit_Risk_Rating_Policy.docx",
+        "POL-05_2026-1_Borrower_Stability_Policy.docx",
+        "Rule_Based_Decision_Engine_Frozen_Ground_Truth.docx",
     ]
     
+    # 2025.1 versions — only POL-01 and POL-02 have 2025 versions; rest remain 2026
     kb_2025_files = [
-        "POL-01_2025-1.docx", "POL-02_2025-1.docx", "POL-03_2025-1.docx",
-        "POL-04_2026-1.docx", "POL-05_2026-1.docx", "POL-06_2026-1.docx" # using 2026 for 4,5,6 as 2025 doesn't exist
+        "POL-01_2025-1_Affordability_Policy.docx",
+        "POL-02_2025-1_Credit_Exposure_Policy.docx",
+        "POL-03_2026-1_Financing_to_Value_Policy.docx",
+        "POL-04_2026-1_Credit_Risk_Rating_Policy.docx",
+        "POL-05_2026-1_Borrower_Stability_Policy.docx",
+        "Rule_Based_Decision_Engine_Frozen_Ground_Truth.docx",
     ]
     
     kb_2026 = "\n\n".join([extract_text_from_docx(os.path.join(base_dir, f)) for f in kb_2026_files])
     kb_2025 = "\n\n".join([extract_text_from_docx(os.path.join(base_dir, f)) for f in kb_2025_files])
     
-    # Alternate context for EXP-003 (just POL-01 and POL-02)
-    kb_alt = "\n\n".join([extract_text_from_docx(os.path.join(base_dir, f)) for f in ["POL-01_2026-1.docx", "POL-02_2026-1.docx"]])
+    # Alternate reduced context for EXP-003 (Affordability + Exposure only)
+    kb_alt = "\n\n".join([extract_text_from_docx(os.path.join(base_dir, f)) for f in [
+        "POL-01_2026-1_Affordability_Policy.docx",
+        "POL-02_2026-1_Credit_Exposure_Policy.docx",
+    ]])
     
     return kb_2026, kb_2025, kb_alt
 
@@ -173,11 +196,15 @@ async def run_single_experiment(adapter, exp_code, prompt_template, sys_template
         applicant_id=row['Applicant Code'],
         annual_income=row['Annual Income'],
         loan_requested=row['Loan Requested'],
-        leverage=row['Leverage'],
-        dscr=row['DSCR'],
-        ltv=row['LTV'],
-        current_ratio=row['Current Ratio'],
-        documentation=row['Documentation Complete'],
+        goods_price=row['Goods Price'],
+        monthly_annuity=row['Monthly Annuity'],
+        pti=row['PTI (%)'],
+        cti=row['CTI (x)'],
+        lgv=row['LGV (%)'],
+        employment_years=row['Employment Tenure (Years)'],
+        inq_mon=row['Inquiries (Month)'],
+        inq_qrt=row['Inquiries (Quarter)'],
+        inq_year=row['Inquiries (Year)'],
         pd_score=row['Predicted PD'],
         policy_context=kb_text
     )
