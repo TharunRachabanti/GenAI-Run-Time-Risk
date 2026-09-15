@@ -195,15 +195,19 @@ async def run_single_experiment(adapter, exp_code, prompt_template, sys_template
     )
     try:
         content, _ = await adapter.complete(sys_template, user_prompt, temperature=0.0, max_tokens=256)
-        content = content.replace("```json", "").replace("```", "").strip()
+        content_clean = content.replace("```json", "").replace("```", "").strip()
+        
+        # DEBUG: print raw response to diagnose errors
+        print(f"    [DEBUG {exp_code}] Raw response: {content_clean[:300]}")
         
         # Primary: try standard JSON parse
         try:
-            result = json.loads(content)
+            result = json.loads(content_clean)
             return exp_code, result.get("recommendation", "ERROR")
-        except json.JSONDecodeError:
+        except json.JSONDecodeError as je:
+            print(f"    [DEBUG {exp_code}] JSON parse failed: {je}")
             # Fallback: use regex to pull out just the recommendation field
-            match = re.search(r'"recommendation"\s*:\s*"([^"]+)"', content)
+            match = re.search(r'"recommendation"\s*:\s*"([^"]+)"', content_clean)
             if match:
                 return exp_code, match.group(1)
             return exp_code, "ERROR"
