@@ -194,7 +194,7 @@ async def run_single_experiment(adapter, exp_code, prompt_template, sys_template
         model_name=adapter._model_name
     )
     try:
-        content, _ = await adapter.complete(sys_template, user_prompt, temperature=0.0, max_tokens=256)
+        content, _ = await adapter.complete(sys_template, user_prompt, temperature=0.0, max_tokens=1000)
         content_clean = content.replace("```json", "").replace("```", "").strip()
         
         # DEBUG: print raw response to diagnose errors
@@ -249,19 +249,23 @@ async def async_main():
     for _, row in test_df.iterrows():
         print(f"  Evaluating {row['Applicant Code']}...")
         results = {"Applicant Code": row['Applicant Code']}
-        tasks = [
-            run_single_experiment(adapter_A, "EXP-001", USER_PROMPT_BASELINE,      SYSTEM_PROMPT_STANDARD,      kb_2026, row),
-            run_single_experiment(adapter_A, "EXP-002", USER_PROMPT_CONSERVATIVE,  SYSTEM_PROMPT_CONSERVATIVE,  kb_2026, row),
-            run_single_experiment(adapter_A, "EXP-003", USER_PROMPT_BASELINE,      SYSTEM_PROMPT_STANDARD,      kb_alt,  row),
-            run_single_experiment(adapter_A, "EXP-004", USER_PROMPT_BASELINE,      SYSTEM_PROMPT_STANDARD,      kb_2025, row),
-            run_single_experiment(adapter_B, "EXP-005", USER_PROMPT_BASELINE,      SYSTEM_PROMPT_STANDARD,      kb_2026, row),
-            run_single_experiment(adapter_A, "EXP-006", USER_PROMPT_BASELINE,      SYSTEM_PROMPT_STANDARD,      kb_2026, row),
-            run_single_experiment(adapter_B, "EXP-007", USER_PROMPT_CONSERVATIVE,  SYSTEM_PROMPT_CONSERVATIVE,  kb_alt,  row),
+        
+        # Run experiments SEQUENTIALLY to avoid flooding free-tier rate limits
+        exp_configs = [
+            (adapter_A, "EXP-001", USER_PROMPT_BASELINE,     SYSTEM_PROMPT_STANDARD,      kb_2026),
+            (adapter_A, "EXP-002", USER_PROMPT_CONSERVATIVE, SYSTEM_PROMPT_CONSERVATIVE,  kb_2026),
+            (adapter_A, "EXP-003", USER_PROMPT_BASELINE,     SYSTEM_PROMPT_STANDARD,      kb_alt),
+            (adapter_A, "EXP-004", USER_PROMPT_BASELINE,     SYSTEM_PROMPT_STANDARD,      kb_2025),
+            (adapter_B, "EXP-005", USER_PROMPT_BASELINE,     SYSTEM_PROMPT_STANDARD,      kb_2026),
+            (adapter_A, "EXP-006", USER_PROMPT_BASELINE,     SYSTEM_PROMPT_STANDARD,      kb_2026),
+            (adapter_B, "EXP-007", USER_PROMPT_CONSERVATIVE, SYSTEM_PROMPT_CONSERVATIVE,  kb_alt),
         ]
-        exp_results = await asyncio.gather(*tasks)
-        for exp_code, recommendation in exp_results:
-            results[exp_code] = recommendation
+        for adp, exp_code, prompt_t, sys_t, kb in exp_configs:
+            exp_result_code, recommendation = await run_single_experiment(adp, exp_code, prompt_t, sys_t, kb, row)
+            results[exp_result_code] = recommendation
             print(f"    {exp_code}: {recommendation}")
+            await asyncio.sleep(1)  # 1-second pause between calls to respect rate limits
+        
         all_rows.append(results)
 
     # Build the results dataframe
