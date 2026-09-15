@@ -238,12 +238,13 @@ async def async_main():
     bench_df  = pd.read_csv(benchmark_path)
 
     # ---------------------------------------------------------
-    # TEST: Run all 7 experiments for 5 applicants
+    # TEST: Run all 7 experiments for 1 applicant only
+    # Once confirmed error-free, add more IDs here
     # ---------------------------------------------------------
-    test_ids = ["P001", "P002", "P003", "P004", "P005"]
+    test_ids = ["P001"]
     test_df  = df[df['Applicant Code'].isin(test_ids)]
 
-    print(f"\n--- RUNNING ALL 7 EXPERIMENTS FOR {len(test_df)} APPLICANTS ---")
+    print(f"\n--- RUNNING ALL 7 EXPERIMENTS FOR 1 APPLICANT: {test_ids} ---")
     print(f"    Total API calls: {len(test_df) * 7}\n")
 
     all_rows = []
