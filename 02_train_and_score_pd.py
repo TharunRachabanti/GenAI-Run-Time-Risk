@@ -6,16 +6,6 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import Pipeline
 
-def calculate_risk_band(pd_score):
-    if pd_score < 0.02:
-        return 'Low risk'
-    elif pd_score < 0.05:
-        return 'Moderate risk'
-    elif pd_score < 0.07:
-        return 'Elevated risk'
-    else:
-        return 'High risk'
-
 def map_features(df):
     out = pd.DataFrame()
     out["annual_income"] = df["AMT_INCOME_TOTAL"].clip(lower=0)
@@ -61,9 +51,7 @@ def main():
     
     # De-fragment the dataframe before adding new columns to prevent PerformanceWarning
     borrowers_df = borrowers_df.copy()
-    borrowers_df['pd_score'] = pd_scores
-    borrowers_df['pd_risk_band'] = borrowers_df['pd_score'].apply(calculate_risk_band)
-    
+    borrowers_df['pd_score'] = pd_scores    
     # Save
     borrowers_df.to_csv(output_path, index=False)
     

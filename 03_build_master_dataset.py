@@ -3,6 +3,16 @@ import pandas as pd
 import numpy as np
 import os
 
+def calculate_risk_band(pd_score):
+    if pd_score < 0.02:
+        return 'Low risk'
+    elif pd_score < 0.05:
+        return 'Moderate risk'
+    elif pd_score < 0.07:
+        return 'Elevated risk'
+    else:
+        return 'High risk'
+
 def main():
     """Builds the frozen master dataset with all variables derived directly from raw Kaggle data.
     
@@ -94,7 +104,7 @@ def main():
     # Source: POL-04_2026-1_Credit_Risk_Rating_Policy.docx
     # --------------------------------------------------------------------------
     master['Predicted PD']  = df['pd_score']
-    master['PD Risk Band']  = df['pd_risk_band']
+    master['PD Risk Band']  = df['pd_score'].apply(calculate_risk_band)
 
     # Save
     master.to_csv(output_path, index=False)
