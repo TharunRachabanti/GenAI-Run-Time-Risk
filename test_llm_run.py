@@ -65,7 +65,7 @@ class GoogleAdapter:
 OUTPUT_SCHEMA = """{{
   "applicant_id": "{applicant_id}",
   "recommendation": "<APPROVE|APPROVE_WITH_CONDITIONS|DECLINE>",
-  "reasoning_summary": "<ONE sentence citing the key policy measure(s) that drove this decision>",
+  "reasoning_summary": "<MANDATORY: 1-sentence explanation citing the key policy measure(s)>",
   "material_exceptions_count": <integer>
 }}"""
 
@@ -212,11 +212,17 @@ async def run_single_experiment(adapter, exp_code, prompt_template, sys_template
                 if rec != "ERROR":
                     return exp_code, rec, rsn
             except json.JSONDecodeError:
-                # Fallback: regex to extract independently from broken JSON
+                # Fallback: robust regex to extract from broken JSON
                 rec_match = re.search(r'"recommendation"\s*:\s*"([^"]+)"', content_clean)
-                rsn_match = re.search(r'"reasoning_summary"\s*:\s*"([^"]+)', content_clean)
+                
+                # Match everything after "reasoning_summary": " up to the next ", or "} or end of string
+                rsn_match = re.search(r'"reasoning_summary"\s*:\s*"([\s\S]*?)(?:",|"\s*}|$)', content_clean)
+                
                 rec = rec_match.group(1) if rec_match else "ERROR"
-                rsn = rsn_match.group(1).rstrip('"\\') if rsn_match else ""
+                rsn = rsn_match.group(1).strip() if rsn_match else ""
+                
+                # If the string was truncated and has trailing escape/quote, clean it
+                rsn = re.sub(r'\\?["\\]*$', '', rsn)
                 
                 if rec != "ERROR":
                     return exp_code, rec, rsn
