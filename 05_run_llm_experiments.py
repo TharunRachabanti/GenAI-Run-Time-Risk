@@ -68,14 +68,8 @@ class GoogleAdapter:
 
 OUTPUT_SCHEMA = """{{
   "applicant_id": "{applicant_id}",
-  "pd_score": {pd_score},
-  "recommendation": "<APPROVE|APPROVE_WITH_CONDITIONS|DECLINE|INCOMPLETE>",
-  "reasoning_summary": "<comprehensive reasoning for the recommendation>",
-  "material_exceptions_count": <integer>,
-  "runtime_configuration": {{
-    "prompt_version": "{prompt_version}",
-    "model": "{model_name}"
-  }}
+  "recommendation": "<APPROVE|APPROVE_WITH_CONDITIONS|DECLINE>",
+  "material_exceptions_count": <integer>
 }}"""
 
 # ---------------------------------------------------------
@@ -221,7 +215,7 @@ async def run_single_experiment(adapter, exp_code, prompt_template, sys_template
     
     try:
         import re
-        content, _ = await adapter.complete(sys_template, user_prompt, temperature=0.0, max_tokens=1000)
+        content, _ = await adapter.complete(sys_template, user_prompt, temperature=0.0, max_tokens=256)
         
         # Clean markdown formatting if present
         content = content.replace("```json", "").replace("```", "").strip()
