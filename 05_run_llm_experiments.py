@@ -69,6 +69,7 @@ class GoogleAdapter:
 OUTPUT_SCHEMA = """{{
   "applicant_id": "{applicant_id}",
   "recommendation": "<APPROVE|APPROVE_WITH_CONDITIONS|DECLINE>",
+  "reasoning_summary": "<ONE sentence citing the key policy measure(s) that drove this decision>",
   "material_exceptions_count": <integer>
 }}"""
 
@@ -215,24 +216,25 @@ async def run_single_experiment(adapter, exp_code, prompt_template, sys_template
     
     try:
         import re
-        content, _ = await adapter.complete(sys_template, user_prompt, temperature=0.0, max_tokens=256)
+        content, _ = await adapter.complete(sys_template, user_prompt, temperature=0.0, max_tokens=400)
         
         # Clean markdown formatting if present
-        content = content.replace("```json", "").replace("```", "").strip()
+        content_clean = content.replace("```json", "").replace("```", "").strip()
         
         # Primary: standard JSON parse
         try:
-            result = json.loads(content)
-            return exp_code, result.get("recommendation", "ERROR")
+            result = json.loads(content_clean)
+            return exp_code, result.get("recommendation", "ERROR"), result.get("reasoning_summary", "")
         except json.JSONDecodeError:
-            # Fallback: regex to extract recommendation field
-            match = re.search(r'"recommendation"\s*:\s*"([^"]+)"', content)
-            if match:
-                return exp_code, match.group(1)
-            return exp_code, "ERROR"
+            # Fallback: regex to extract fields independently from broken JSON
+            rec_match = re.search(r'"recommendation"\s*:\s*"([^"]+)"', content_clean)
+            rsn_match = re.search(r'"reasoning_summary"\s*:\s*"([^"]+)', content_clean)
+            recommendation = rec_match.group(1) if rec_match else "ERROR"
+            reasoning      = rsn_match.group(1).rstrip('"\\') if rsn_match else ""
+            return exp_code, recommendation, reasoning
     except Exception as e:
         print(f"Error on {exp_code} for {row['Applicant Code']}: {e}")
-        return exp_code, "ERROR"
+        return exp_code, "ERROR", ""
 
 async def process_borrower(row, kb_2026, kb_2025, kb_alt, adapter_A, adapter_B, semaphore):
     async with semaphore:
@@ -263,8 +265,10 @@ async def process_borrower(row, kb_2026, kb_2025, kb_alt, adapter_A, adapter_B, 
         ]
         
         exp_results = await asyncio.gather(*tasks)
-        for exp_code, rec in exp_results:
-            results[exp_code] = rec
+        for exp_code, recommendation, reasoning in exp_results:
+            results[exp_code] = recommendation
+            # You can also store reasoning if you want to output it in full run. 
+            # I am keeping it simple for the main script right now.
             
         return results
 
