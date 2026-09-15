@@ -65,6 +65,7 @@ class GoogleAdapter:
 OUTPUT_SCHEMA = """{{
   "applicant_id": "{applicant_id}",
   "recommendation": "<APPROVE|APPROVE_WITH_CONDITIONS|DECLINE>",
+  "reasoning_summary": "<2-3 sentence explanation citing the specific policy measures that drove this decision>",
   "material_exceptions_count": <integer>
 }}"""
 
@@ -203,17 +204,17 @@ async def run_single_experiment(adapter, exp_code, prompt_template, sys_template
         # Primary: try standard JSON parse
         try:
             result = json.loads(content_clean)
-            return exp_code, result.get("recommendation", "ERROR")
+            return exp_code, result.get("recommendation", "ERROR"), result.get("reasoning_summary", "")
         except json.JSONDecodeError as je:
             print(f"    [DEBUG {exp_code}] JSON parse failed: {je}")
-            # Fallback: use regex to pull out just the recommendation field
+            # Fallback: use regex to pull out recommendation field
             match = re.search(r'"recommendation"\s*:\s*"([^"]+)"', content_clean)
             if match:
-                return exp_code, match.group(1)
-            return exp_code, "ERROR"
+                return exp_code, match.group(1), ""
+            return exp_code, "ERROR", ""
     except Exception as e:
         print(f"  ERROR on {exp_code} for {row['Applicant Code']}: {e}")
-        return exp_code, "ERROR"
+        return exp_code, "ERROR", ""
 
 async def async_main():
     api_key = os.getenv("GOOGLE_API_KEY")
@@ -246,6 +247,7 @@ async def async_main():
     print(f"    Total API calls: {len(test_df) * 7}\n")
 
     all_rows = []
+    reasoning_rows = []  # Separate list to capture detailed reasoning
     for _, row in test_df.iterrows():
         print(f"  Evaluating {row['Applicant Code']}...")
         results = {"Applicant Code": row['Applicant Code']}
@@ -261,9 +263,15 @@ async def async_main():
             (adapter_B, "EXP-007", USER_PROMPT_CONSERVATIVE, SYSTEM_PROMPT_CONSERVATIVE,  kb_alt),
         ]
         for adp, exp_code, prompt_t, sys_t, kb in exp_configs:
-            exp_result_code, recommendation = await run_single_experiment(adp, exp_code, prompt_t, sys_t, kb, row)
+            exp_result_code, recommendation, reasoning = await run_single_experiment(adp, exp_code, prompt_t, sys_t, kb, row)
             results[exp_result_code] = recommendation
             print(f"    {exp_code}: {recommendation}")
+            reasoning_rows.append({
+                "Borrower":        row['Applicant Code'],
+                "Experiment":      exp_code,
+                "Recommendation":  recommendation,
+                "Reasoning":       reasoning,
+            })
             await asyncio.sleep(1)  # 1-second pause between calls to respect rate limits
         
         all_rows.append(results)
@@ -282,9 +290,12 @@ async def async_main():
     cols = ['Borrower', 'Rule Based', 'EXP-001', 'EXP-002', 'EXP-003', 'EXP-004', 'EXP-005', 'EXP-006', 'EXP-007']
     final_df = final_df[[c for c in cols if c in final_df.columns]]
 
-    # Save to Excel
+    # Write TWO sheets into one single Excel file
+    reasoning_df = pd.DataFrame(reasoning_rows)
     output_path = "data/processed/test_5records_all_experiments.xlsx"
-    final_df.to_excel(output_path, index=False, sheet_name="Experiment Results")
+    with pd.ExcelWriter(output_path, engine="openpyxl") as writer:
+        final_df.to_excel(writer, sheet_name="Decision Matrix", index=False)
+        reasoning_df.to_excel(writer, sheet_name="Reasoning", index=False)
 
     print(f"\n--- TEST COMPLETE ---")
     print(f"Results saved to: {output_path}")
