@@ -158,21 +158,28 @@ async def async_main():
     df = pd.read_csv(input_path)
     
     # ---------------------------------------------------------
-    # TEST ONLY: Filter to the 5 perfect test records
+    # TEST ONLY: Filter to ONE perfect test record
     # ---------------------------------------------------------
-    test_ids = ["P001", "P002", "P003", "P004", "P005"]
+    test_ids = ["P001"]
     test_df = df[df['Applicant Code'].isin(test_ids)]
     
-    print(f"\n--- RUNNING TEST FOR 5 APPLICANTS: {test_ids} ---")
+    print(f"\n--- RUNNING TEST FOR 1 APPLICANT: {test_ids} ---")
     
+    all_results = []
     for _, row in test_df.iterrows():
         print(f"\nEvaluating {row['Applicant Code']}...")
         _, result = await run_single_experiment(
             adapter, "EXP-001", USER_PROMPT_BASELINE, SYSTEM_PROMPT_STANDARD, kb_2026, row
         )
         print(json.dumps(result, indent=2))
+        all_results.append(result)
         
-    print("\n--- TEST COMPLETE ---")
+    # Save the output to a CSV file (can be opened in Excel)
+    output_path = "data/processed/test_single_record_output.csv"
+    results_df = pd.DataFrame(all_results)
+    results_df.to_csv(output_path, index=False)
+    
+    print(f"\n--- TEST COMPLETE: Saved to {output_path} ---")
 
 def main():
     asyncio.run(async_main())
