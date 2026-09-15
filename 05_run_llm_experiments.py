@@ -48,10 +48,18 @@ class GoogleAdapter:
                 content = response.text
                 break
             except Exception as e:
-                if "429" in str(e) and attempt < max_retries - 1:
+                err = str(e)
+                if "429" in err and attempt < max_retries - 1:
                     delay = 15 * (2 ** attempt)
                     logger.warning(f"Google API rate limit hit (429). Retrying in {delay}s (Attempt {attempt+1}/{max_retries})...")
                     await asyncio.sleep(delay)
+                elif "404" in err and "gemini-1.5-pro" in self._model_name:
+                    logger.warning(f"Model {self._model_name} not on free tier. Falling back to gemini-1.5-flash.")
+                    self._model_name = "gemini-1.5-flash"
+                    gemini_model = self._genai.GenerativeModel(
+                        model_name=self._model_name,
+                        system_instruction=system_prompt,
+                    )
                 else:
                     raise e
 
@@ -212,12 +220,22 @@ async def run_single_experiment(adapter, exp_code, prompt_template, sys_template
     )
     
     try:
+        import re
         content, _ = await adapter.complete(sys_template, user_prompt, temperature=0.0, max_tokens=1000)
         
         # Clean markdown formatting if present
         content = content.replace("```json", "").replace("```", "").strip()
-        result = json.loads(content)
-        return exp_code, result.get("recommendation", "ERROR")
+        
+        # Primary: standard JSON parse
+        try:
+            result = json.loads(content)
+            return exp_code, result.get("recommendation", "ERROR")
+        except json.JSONDecodeError:
+            # Fallback: regex to extract recommendation field
+            match = re.search(r'"recommendation"\s*:\s*"([^"]+)"', content)
+            if match:
+                return exp_code, match.group(1)
+            return exp_code, "ERROR"
     except Exception as e:
         print(f"Error on {exp_code} for {row['Applicant Code']}: {e}")
         return exp_code, "ERROR"

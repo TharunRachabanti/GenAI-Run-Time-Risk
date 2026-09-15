@@ -46,10 +46,19 @@ class GoogleAdapter:
                 )
                 return response.text, {"model": self._model_name}
             except Exception as e:
-                if "429" in str(e) and attempt < max_retries - 1:
+                err = str(e)
+                if "429" in err and attempt < max_retries - 1:
                     delay = 15 * (2 ** attempt)
                     logger.warning(f"Rate limit hit. Retrying in {delay}s...")
                     await asyncio.sleep(delay)
+                elif "404" in err and "gemini-1.5-pro" in self._model_name:
+                    # Free tier does not support gemini-1.5-pro — fall back to Flash
+                    logger.warning(f"Model {self._model_name} not available on free tier. Falling back to gemini-1.5-flash.")
+                    self._model_name = "gemini-1.5-flash"
+                    gemini_model = self._genai.GenerativeModel(
+                        model_name=self._model_name,
+                        system_instruction=system_prompt,
+                    )
                 else:
                     raise e
 
@@ -171,6 +180,7 @@ def build_knowledge_bases():
     return kb_2026, kb_2025, kb_alt
 
 async def run_single_experiment(adapter, exp_code, prompt_template, sys_template, kb_text, row):
+    import re
     user_prompt = prompt_template.format(
         applicant_id=row['Applicant Code'],
         annual_income=row['Annual Income'],
@@ -192,8 +202,17 @@ async def run_single_experiment(adapter, exp_code, prompt_template, sys_template
     try:
         content, _ = await adapter.complete(sys_template, user_prompt, temperature=0.0, max_tokens=1000)
         content = content.replace("```json", "").replace("```", "").strip()
-        result = json.loads(content)
-        return exp_code, result.get("recommendation", "ERROR")
+        
+        # Primary: try standard JSON parse
+        try:
+            result = json.loads(content)
+            return exp_code, result.get("recommendation", "ERROR")
+        except json.JSONDecodeError:
+            # Fallback: use regex to pull out just the recommendation field
+            match = re.search(r'"recommendation"\s*:\s*"([^"]+)"', content)
+            if match:
+                return exp_code, match.group(1)
+            return exp_code, "ERROR"
     except Exception as e:
         print(f"  ERROR on {exp_code} for {row['Applicant Code']}: {e}")
         return exp_code, "ERROR"
